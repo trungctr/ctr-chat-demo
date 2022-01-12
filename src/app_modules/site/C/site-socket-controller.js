@@ -6,13 +6,36 @@ class Socket {
 		console.log(socket.id, 'đã kết nối')
 		var identify
 		var permission
+		//đăng ký
+		socket.on('register', async function (data) {
+			var reg = await auths.register(data)
+			if (reg == true)
+			{
+				console.log(reg,'đăng ký thành công')
+				socket.emit('register', true)
+			} else
+			{
+				console.log(reg,'đăng ký thất bại')
+				socket.emit('register', false)
+			}
+		})
+
+		//đăng nhập
+		socket.on('login', async (data) => {
+			var login = await auths.login(data)
+			if (login.status == true)
+			{
+				socket.emit('login', login)
+			}
+		})
+
 		socket.on('dang-ky', (data) => {
 			if (auths.register(data))
 			{
 				socket.emit('dang-ky', true)
 			}
-			
 		})
+
 		socket.on('disconnect', () => {
 			console.log(socket.id, 'ngắt kết nối')
 		})

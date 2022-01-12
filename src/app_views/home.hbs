@@ -5,108 +5,114 @@
 	}
 
 </style>
-<div class="container" id="dang nhap">Đăng kí
+<div class="container" id="register-box">Đăng kí
 	<div>
 		<input type="text" placeholder="nhâp tên đăng nhập" style="" id="register-username" />
 		<input type="password" placeholder="nhâp mật khẩu" style="" id="register-pw" />
-		<button id='dang-ky' style="">Đăng ký</button>
+		<button id='register' style="">Đăng ký</button>
 	</div>
 </div>
-
-<div class="container">Đăng nhập
-	<div>
-		<input type="text" placeholder="nhâp tên đăng nhập" style="" id="login-username" />
-		<input type="password" placeholder="nhâp mật khẩu" style="" id="login-pw" />
-		<button id='dang-nhap' style="">Đăng nhập</button>
-	</div>
-</div>
-
 <span style="
 		display: inline-block;
  		height:350px; background-color: white;
 		overflow: auto;
-		height: 50px;">
+		height: 20px;">
 </span>
-<div>
+<div class="container" id="login-box">Đăng nhập
+	<div>
+		<input type="text" placeholder="nhâp tên đăng nhập" style="" id="login-username" />
+		<input type="password" placeholder="nhâp mật khẩu" style="" id="login-pw" />
+		<button id='login' style="">Đăng nhập</button>
+	</div>
+</div>
+<div class="hidden" id="main-container">
 	<span style="
+		display: inline-block;
+ 		height:350px; background-color: white;
+		overflow: auto;
+		height: 50px;">
+	</span>
+	<div>
+		<span style="
 		display: inline-block;
 		background-color: white;
 		overflow: auto;
 		border: 1px solid black;">
-		Groups available
-		<div id='group-list' style=""></div>
-	</span>
-	<span style="
+			Groups available
+			<div id='group-list' style=""></div>
+		</span>
+		<span style="
 		display: inline-block;
  		background-color: white;
 		overflow: auto;
 		border: 1px solid black;">
-		Users online
-		<div id='user-online-list' style=""></div>
-	</span>
-	<span style="
+			Users online
+			<div id='user-online-list' style=""></div>
+		</span>
+		<span style="
 		display: inline-block;
  		background-color: white;
 		overflow: auto;
 		border: 1px solid black;">
-		your group
-		<div id='your-group-list' style=""></div>
-	</span>
-	<span style="
+			your groups
+			<div id='your-group-list' style=""></div>
+		</span>
+		<span style="
 			display: inline-block;
 	 		background-color: white;
 			overflow: auto;
 			border: 1px solid black;">
-		your chatting
-		<div id='your-group-list' style=""></div>
-	</span>
-</div>
-<span>
-	<div style="max-width: 300px; position:fixed; botom:20px; right: 20px; border:1px solid black; margin: 30px auto">
-		chat with:<span id="dual-name"> nobody</span>
-		<div>
-			<div style="
+			your chatting
+			<div id='your-group-list' style=""></div>
+		</span>
+	</div>
+	<span>
+		<div style="max-width: 300px; position:fixed; botom:20px; right: 20px; border:1px solid black; margin: 30px auto">
+			chat with:<span id="dual-name"> nobody</span>
+			<div>
+				<div style="
 		display: block;
  		height:350px; background-color: white;
 		overflow: auto;
 		border: 1px solid black;">
-				<div id='dual-chat-content'></div>
-				end
-			</div>
-			<div>
-				<input type="text" style="display: block;
+					<div id='dual-chat-content'></div>
+					end
+				</div>
+				<div>
+					<input type="text" style="display: block;
 		height: 50px;
 		background-color: white; border: 1px solid" id="dual-message-content" />
-			</div>
-			<div>
-				<button id='dual-chat-send-button'>send</button>
+				</div>
+				<div>
+					<button id='dual-chat-send-button'>send</button>
+				</div>
 			</div>
 		</div>
-	</div>
-</span>
-<span>
-	<div style="max-width: 300px; position:fixed; botom:20px; left: 20px; border:1px solid black; margin: 30px auto">
-		Group:<span id="group-chat-name"></span>
-		<div>
-			<div style="
+	</span>
+	<span>
+		<div style="max-width: 300px; position:fixed; botom:20px; left: 20px; border:1px solid black; margin: 30px auto">
+			Group:<span id="group-chat-name"></span>
+			<div>
+				<div style="
 		display: block;
  		height:350px; background-color: white;
 		overflow: auto;
 		border: 1px solid black;">
-				<div id='group-chat-content'></div>
-				end
-			</div>
-			<div>
-				<input type="text" style="display: block;
+					<div id='group-chat-content'></div>
+					end
+				</div>
+				<div>
+					<input type="text" style="display: block;
 		height: 50px;
 		background-color: white; border: 1px solid" id="group-message-content" />
-			</div>
-			<div>
-				<button id='group-chat-send-button'>send</button>
+				</div>
+				<div>
+					<button id='group-chat-send-button'>send</button>
+				</div>
 			</div>
 		</div>
-	</div>
-</span>
+	</span>
+</div>
 <script>
 	var socket = io('/')
 	var name = ''
@@ -116,6 +122,15 @@
 		var messageContent = `<p class="chat-mess">${ name }:${ message }</p>`
 		chatBox.insertAdjacentHTML('beforeEnd', messageContent)
 	}
+
+	function setCookie(cname, cvalue, exdays)
+	{
+		var d = new Date();
+		d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+		var expires = "expires=" + d.toUTCString();
+		document.cookie = cname + "=" + cvalue + "; " + expires;
+	}
+
 	//gửi tin chat
 	document.getElementById('dual-chat-send-button').onclick = () =>
 	{
@@ -124,6 +139,47 @@
 			name, message
 		})
 	}
+
+	//Đăng ký
+	document.getElementById('register').onclick = () =>
+	{
+		var username = document.getElementById('register-username').value
+		var password = document.getElementById('register-pw').value
+		socket.emit('register', {
+			username, password
+		})
+	}
+	socket.on('register', (d) =>
+	{
+		if (d) {
+			alert('đăng ký thành công bạn có thể đăng nhập để sử dụng dịch vụ')
+		} else {
+			alert('đăng ký thất bại. bạn hãy thử lại')
+		}
+	})
+
+	//đăng nhập
+	document.getElementById('login').onclick = () =>
+	{
+		var username = document.getElementById('login-username').value
+		var password = document.getElementById('login-pw').value
+		socket.emit('login', {
+			username, password
+		})
+	}
+	socket.on('login', (d) =>
+	{
+		if (d.status == true) {
+			setCookie('ctrdata1', d.ctrdata1, 1)
+			setCookie('ctrdata2', d.ctrdata2, 30)
+			document.getElementById('login-box').classList.add('hidden')
+			document.getElementById('main-container').classList.remove('hidden')
+			alert('đăng nhập thành công')
+		} else {
+			alert(d.message)
+		}
+	})
+
 
 	//nhận tin nhắn
 	socket.on('dual-chat', (d) =>

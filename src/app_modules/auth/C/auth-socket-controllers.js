@@ -16,11 +16,11 @@ const identifyModel = require('../M/identify-model');
 
 
 class AuthController {
-	register = async (req) => {
+	register = async (data) => {
 		try
 		{
-			var reqUsername = req.body.username.toLowerCase();
-			var reqPassword = req.body.password
+			var reqUsername = data.username.toLowerCase();
+			var reqPassword = data.password
 			const user = await accountsModel.find({username: reqUsername}, {username: 1})
 			if (user.length > 0)
 			{
@@ -60,29 +60,27 @@ class AuthController {
 		}
 	}
 
-	authLogin = async (req, res) => {
+	login = async (data) => {
 		try
 		{
-			var reqUsername = req.body.username.toLowerCase()
-			var reqPassword = req.body.password;
+			var reqUsername = data.username.toLowerCase()
+			var reqPassword = data.password;
 			const user = await accountsModel.findOne({username: reqUsername}, {username: 1, password: 1, createdAt: 1, updatedAt: 1})
 			if (!user)
 			{
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 401<br/> _EAL01 <br/>Tài khoản hoặc mật khẩu không chính xác',// tài khoản không tồn tại
-					buttonText: 'Nhập lại',
-				})
+				return {
+					status: false,
+					message: 'người dùng đã tồn tại'
+				}
 			}
 			const isPasswordValid = bcrypt.compareSync(reqPassword, user.password);
 			if (!isPasswordValid)
 			{
 				console.log('_Cảnh báo an ninh:', reqUsername, ' nhập sai mật khẩu')
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 401<br/> _EAL02 <br/>Tài khoản hoặc mật khẩu không chính xác',// sai mật khẩu
-					buttonText: 'Nhập lại',
-				})
+				return {
+					status: false,
+					message: 'nhập sai tài khoản hoặc mật khẩu, hãy nhập lại'
+				}
 			}
 			const accessTokenLife = env.ACCESS_TOKEN_LIFE
 			const accessTokenSecret = env.ACCESS_TOKEN_SECRET
@@ -96,11 +94,11 @@ class AuthController {
 			);
 			if (!accessToken)
 			{
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 501<br/> _EAL03 <br/>Gặp lỗi trong quá trình đăng nhập',//Tạo access token thất bại
-					buttonText: 'Đăng nhập lại',
-				})
+				console.log('tạo token thất bại')
+				return {
+					status: false,
+					message: 'có sự cố khi đăng nhập, hãy thử lại'
+				}
 			}
 			var refreshToken
 			// kiểm tra xem đã có refresh token trong DB chưa ?
@@ -123,22 +121,19 @@ class AuthController {
 				DBrefreshToken.lastToken = accessToken
 				new tokensModel(DBrefreshToken).save()
 			}
-			res.cookie('ctrdata1', accessToken, {maxAge: 2100000000})
-			res.cookie('ctrdata2', encoding(refreshToken), {maxAge: 2100000000})
-			res.render('./site/notification', {
-				direct: '/projects/manager',
-				note: 'Status: 201<br/>Đăng nhập thành công',
-				buttonText: 'OK',
-			})
-
+			console.log('đăng nhập thành công')
+			return {
+				status: true,
+				ctrdata1: accessToken,
+				ctrdata2: encoding(refreshToken),
+			}
 		} catch (e)
 		{
 			console.log('_At request = login,', e)
-			return res.render('./site/notification', {
-				direct: '/login',
-				note: '_Status: 501<br/> _EAL04 <br/>Gặp lỗi trong quá trình đăng nhập',//Tạo access token thất bại
-				buttonText: 'Đăng nhập lại',
-			})
+			return {
+				status: false,
+				message: 'có sự cố khi đăng nhập, hãy thử lại'
+			}
 		}
 	};
 

@@ -1,0 +1,83 @@
+<script src="/socket.io/socket.io.js"></script>
+<style>
+	.hidden {
+		display: none;
+	}
+
+</style>
+<div class="container" style="position: fixed; 
+top: 20px; 
+lef: 20px;
+display: block; 
+z-index: 20;
+background-color: darkblue
+">
+
+	<input type="text" placeholder="nhâp tên đăng nhập" style="" id="message-content" />
+	<input type="password" placeholder="nhâp mật khẩu" style="" id="message-content" />
+	<button id='dang-ky' style="">Đăng ký</button>
+</div>
+<div class="container" style="position: fixed; 
+top: 60px; 
+lef: 20px;
+display: block; 
+z-index: 20;
+background-color: darkblue
+">
+
+	<input type="text" placeholder="nhâp tên đăng nhập" style="" id="message-content" />
+	<input type="password" placeholder="nhâp mật khẩu" style="" id="message-content" />
+	<button id='dang-ky' style="">Đăng ký</button>
+</div>
+<div style="position: fixed; 
+bottom: 20px; 
+right: 20px;
+display: block; 
+width: 300px; height: 400px;
+z-index: 20;
+background-color: darkblue
+">
+	<div style="position:relative; display: block;width: 300px; height: 400px;">
+		<div style="position:absolute;
+		display: block;
+ 		top: 2px; bottom:80px;
+ 		left:2px; right: 2px; 
+ 		height:350px; background-color: white;
+		overflow: auto;">
+			<div id='chat-content'></div>
+			end
+		</div>
+		<input type="text" style="position: absolute; display: block;
+		height: 38px; width: 295px;
+		top 352px; bottom: 2px; left: 2px; right: 2px;
+		background-color: white; border: 1px solid" id="message-content" />
+		<button id='chat-send-button' style="
+				position:absolute;
+				bottom: 5px;
+				right: 5px; 
+				">send</button>
+	</div>
+</div>
+<script>
+	var socket = io('/')
+	var name = '{{person.firstname}}'
+	function showMess(name, message)
+	{
+		var chatBox = document.getElementById('chat-content')
+		var messageContent = `<p class="chat-mess">${ name }:${ message }</p>`
+		chatBox.insertAdjacentHTML('beforeEnd', messageContent)
+	}
+	document.getElementById('chat-send-button').onclick = () =>
+	{
+		var message = document.getElementById('message-content').value
+		socket.emit('person-chat', {
+			name, message
+		})
+	}
+	socket.on('person-chat', (d) =>
+	{
+		let name = d.name
+		let message = d.message
+		showMess(name, message)
+	})
+</script>

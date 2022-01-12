@@ -16,24 +16,24 @@ class Socket {
 		socket.on('disconnect', () => {
 			console.log(socket.id, 'ngắt kết nối')
 		})
-		socket.on('person-chat', (d) => {
+		socket.on('dual-chat', (d) => {
 			console.log(socket.id, d.name, ':', d.message)
 			// gửi dữ liệu nhận được cho toàn bộ clients
 			var toAll = d
 			toAll.message = 'to all' + toAll.message
-			io.sockets.emit('person-chat', toAll)
+			io.sockets.emit('dual-chat', toAll)
 
 			// chỉ trả lời cho duy nhất client đã gửi
 			var d2 = {}
 			d2.name = 'Server'
 			d2.message = 'you said "' + d.message + '"(only you see this)'
-			socket.emit('person-chat', d2)
+			socket.emit('dual-chat', d2)
 
 			// trả lời cho tất cả clients trừ client đã gửi
 			var d3 = {}
 			d3.name = 'Server'
 			d3.message = '(' + d.name + ')' + d.message
-			socket.broadcast.emit('person-chat', d3)
+			socket.broadcast.emit('dual-chat', d3)
 
 			// lấy danh sách các room
 			console.log(socket.adapter.rooms)

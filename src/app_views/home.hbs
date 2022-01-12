@@ -5,79 +5,150 @@
 	}
 
 </style>
-<div class="container" style="position: fixed; 
-top: 20px; 
-lef: 20px;
-display: block; 
-z-index: 20;
-background-color: darkblue
-">
-
-	<input type="text" placeholder="nhâp tên đăng nhập" style="" id="message-content" />
-	<input type="password" placeholder="nhâp mật khẩu" style="" id="message-content" />
-	<button id='dang-ky' style="">Đăng ký</button>
-</div>
-<div class="container" style="position: fixed; 
-top: 60px; 
-lef: 20px;
-display: block; 
-z-index: 20;
-background-color: darkblue
-">
-
-	<input type="text" placeholder="nhâp tên đăng nhập" style="" id="message-content" />
-	<input type="password" placeholder="nhâp mật khẩu" style="" id="message-content" />
-	<button id='dang-ky' style="">Đăng ký</button>
-</div>
-<div style="position: fixed; 
-bottom: 20px; 
-right: 20px;
-display: block; 
-width: 300px; height: 400px;
-z-index: 20;
-background-color: darkblue
-">
-	<div style="position:relative; display: block;width: 300px; height: 400px;">
-		<div style="position:absolute;
-		display: block;
- 		top: 2px; bottom:80px;
- 		left:2px; right: 2px; 
- 		height:350px; background-color: white;
-		overflow: auto;">
-			<div id='chat-content'></div>
-			end
-		</div>
-		<input type="text" style="position: absolute; display: block;
-		height: 38px; width: 295px;
-		top 352px; bottom: 2px; left: 2px; right: 2px;
-		background-color: white; border: 1px solid" id="message-content" />
-		<button id='chat-send-button' style="
-				position:absolute;
-				bottom: 5px;
-				right: 5px; 
-				">send</button>
+<div class="container" id="dang nhap">Đăng kí
+	<div>
+		<input type="text" placeholder="nhâp tên đăng nhập" style="" id="register-username" />
+		<input type="password" placeholder="nhâp mật khẩu" style="" id="register-pw" />
+		<button id='dang-ky' style="">Đăng ký</button>
 	</div>
 </div>
+
+<div class="container">Đăng nhập
+	<div>
+		<input type="text" placeholder="nhâp tên đăng nhập" style="" id="login-username" />
+		<input type="password" placeholder="nhâp mật khẩu" style="" id="login-pw" />
+		<button id='dang-nhap' style="">Đăng nhập</button>
+	</div>
+</div>
+
+<span style="
+		display: inline-block;
+ 		height:350px; background-color: white;
+		overflow: auto;
+		height: 50px;">
+</span>
+<div>
+	<span style="
+		display: inline-block;
+		background-color: white;
+		overflow: auto;
+		border: 1px solid black;">
+		Groups available
+		<div id='group-list' style=""></div>
+	</span>
+	<span style="
+		display: inline-block;
+ 		background-color: white;
+		overflow: auto;
+		border: 1px solid black;">
+		Users online
+		<div id='user-online-list' style=""></div>
+	</span>
+	<span style="
+		display: inline-block;
+ 		background-color: white;
+		overflow: auto;
+		border: 1px solid black;">
+		your group
+		<div id='your-group-list' style=""></div>
+	</span>
+	<span style="
+			display: inline-block;
+	 		background-color: white;
+			overflow: auto;
+			border: 1px solid black;">
+		your chatting
+		<div id='your-group-list' style=""></div>
+	</span>
+</div>
+<span>
+	<div style="max-width: 300px; position:fixed; botom:20px; right: 20px; border:1px solid black; margin: 30px auto">
+		chat with:<span id="dual-name"> nobody</span>
+		<div>
+			<div style="
+		display: block;
+ 		height:350px; background-color: white;
+		overflow: auto;
+		border: 1px solid black;">
+				<div id='dual-chat-content'></div>
+				end
+			</div>
+			<div>
+				<input type="text" style="display: block;
+		height: 50px;
+		background-color: white; border: 1px solid" id="dual-message-content" />
+			</div>
+			<div>
+				<button id='dual-chat-send-button'>send</button>
+			</div>
+		</div>
+	</div>
+</span>
+<span>
+	<div style="max-width: 300px; position:fixed; botom:20px; left: 20px; border:1px solid black; margin: 30px auto">
+		Group:<span id="group-chat-name"></span>
+		<div>
+			<div style="
+		display: block;
+ 		height:350px; background-color: white;
+		overflow: auto;
+		border: 1px solid black;">
+				<div id='group-chat-content'></div>
+				end
+			</div>
+			<div>
+				<input type="text" style="display: block;
+		height: 50px;
+		background-color: white; border: 1px solid" id="group-message-content" />
+			</div>
+			<div>
+				<button id='group-chat-send-button'>send</button>
+			</div>
+		</div>
+	</div>
+</span>
 <script>
 	var socket = io('/')
-	var name = '{{person.firstname}}'
-	function showMess(name, message)
+	var name = ''
+	function showMess(name, message, node)
 	{
-		var chatBox = document.getElementById('chat-content')
+		var chatBox = document.getElementById(node)
 		var messageContent = `<p class="chat-mess">${ name }:${ message }</p>`
 		chatBox.insertAdjacentHTML('beforeEnd', messageContent)
 	}
-	document.getElementById('chat-send-button').onclick = () =>
+	//gửi tin chat
+	document.getElementById('dual-chat-send-button').onclick = () =>
 	{
-		var message = document.getElementById('message-content').value
-		socket.emit('person-chat', {
+		var message = document.getElementById('dual-message-content').value
+		socket.emit('dual-chat', {
 			name, message
 		})
 	}
-	socket.on('person-chat', (d) =>
+
+	//nhận tin nhắn
+	socket.on('dual-chat', (d) =>
 	{
 		let name = d.name
 		let message = d.message
-		showMess(name, message)
+		showMess(name, message, 'dual-chat-content')
+	})
+
+
+
+	//gửi tin nhóm
+	document.getElementById('group-chat-send-button').onclick = () =>
+	{
+		var message = document.getElementById('message-content').value
+		socket.emit('dual-chat', {
+			name, message
+		})
+	}
+
+	//nhận tin nhắn nhóm
+	socket.on('group-chat', (d) =>
+	{
+		let name = d.name
+		let message = d.message
+		showMess(name, message, 'dual-chat-content')
 	})
 </script>

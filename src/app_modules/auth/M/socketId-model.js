@@ -5,14 +5,10 @@ const mongooseDelete = require('mongoose-delete');//import moule mongoose delete
 //add plugins
 mongoose.plugin(mongooseDelete, {overrideMethods: 'all', deletedAt: true})//mount mongoose delete
 
-//configure schema
-const PersonSetting = new Schema({
-	userId: {type: String, default: '', required: true, },
-	username: {type: String, default: '', required: true, },
-	skin: {type: String, default: 'default.css'},
-	langue: {type: String, default: 'VI'},
-	hidden: {type: Boolean, default: false},
-	online: {type: Boolean, default: false},
-}, {timestamps: true})
 
-module.exports = mongoose.model('PersonSetting', PersonSetting)
+const SocketId = new Schema({
+	userId: {type: String, default: '', required: true, },
+	socketId: {type: String, default: ''},
+}, {timestamps: true});
+
+module.exports = mongoose.model('SocketId', SocketId)

@@ -12,6 +12,7 @@ var authMethod = require('../../../middlewares/authMethods');
 const accountsModel = require('../M/accounts-model');
 const tokensModel = require('../M/refreshTokens-model');
 const identifyModel = require('../M/identify-model');
+const personSettingM = require('../../site/M/personSettings-model')
 
 
 
@@ -32,16 +33,12 @@ class AuthController {
 				const newAccount = {
 					username: reqUsername,
 					password: hashPassword,
-				};
+				}
 
 				var createAccount = await new accountsModel(newAccount).save()
 				if (!createAccount)
 				{
-					return res.render('./site/notification', {
-						direct: '/register',
-						note: '_Status: 400<br/> _EAS01 <br/>Gặp lỗi trong quá trình tạo tài khoản',
-						buttonText: 'Tạo lại',
-					})
+					return false
 				} else
 				{
 					const userId = await accountsModel.findOne({username: reqUsername})
@@ -49,7 +46,12 @@ class AuthController {
 						username: userId.username,
 						userId: userId._id,
 					}
+					const personSetting = {
+						username: userId.username,
+						userId: userId._id,
+					}
 					await identifyModel(newidentifed).save()
+					await personSettingM(personSetting).save()
 					return true
 				}
 			}

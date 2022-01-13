@@ -133,6 +133,11 @@
 </div>
 <script>
 	var socket = io('/')
+	var ime = {}
+	socket.on('firstContact', (d) =>
+	{
+		ime.soId = d
+	})
 	function showMess(name, message, node)
 	{
 		var chatBox = document.getElementById(node)
@@ -140,29 +145,32 @@
 		chatBox.insertAdjacentHTML('beforeEnd', messageContent)
 	}
 
-	function addGroup(g, n)
+	function addGroup(g, n, type)
 	{
 		let Box = document.getElementById(n)
-		let content = `<h4 id='${ String(g._id) }' class='group-available'>${ g.name }</h4>`
+		let content = `<h4 id='${ String(g._id) }' class='group-${ type } group'>${ g.name }
+			<button class="delete-${ type }-btn" id='btn-${ String(g._id) }'>X</button></h4>`
 		Box.insertAdjacentHTML('beforeEnd', content)
 	}
 
 	function addUser(g, n)
-	{
+	{ console.log(g)
 		let Box = document.getElementById(n)
-		let content = `<h4 id='${ String(g._id) }' class='group-available'>${ g.username }</h4>`
+		let content = `<h4 id='${ g.userId }' tradeline-temp='${ g.tempId.socketId }' class='user'>${ g.username }</h4>`
 		Box.insertAdjacentHTML('beforeEnd', content)
 	}
 
 	function clear(n)
 	{
 		let Box = document.getElementById(n)
-		Box.innerHTML = ''
+		if (Box) {Box.innerHTML = ''}
 	}
 	function remove(n)
 	{
 		var node = document.getElementById(n)
-		node.parentNode.removeChild(node)
+		if (node) {
+			node.parentNode.removeChild(node)
+		}
 	}
 
 	function setCookie(cname, cvalue, exdays)
@@ -192,44 +200,62 @@
 	{
 		await clear('group-list')
 		for (var i = 0;i < d.allRooms.length;i++) {
-			addGroup(d.allRooms[i], 'group-list')
+			addGroup(d.allRooms[i], 'group-list', 'public')
 		}
 	})
 
 	//public user
-	socket.on('publicUser', async (d) =>
+	socket.on('ping', async function (d)
 	{
-		await clear('user-online-list')
+		addUser(d, 'user-online-list')
+	})
+
+	socket.on('publicUser', async function (d)
+	{
 		for (var i = 0;i < d.length;i++) {
 			addUser(d[i], 'user-online-list')
 		}
 	})
 
+	//user offline
+	socket.on('offline', async function (d)
+	{
+		remove(d)
+	})
+
 	//joint rooms
 	socket.on('jointRooms', async (d) =>
 	{
-		await clear('joint-group-list')
-		for (var i = 0;i < d.length;i++) {
-			addGroup(d[i], 'joint-group-list')
+		if (d.length > 1) {
+			await clear('joint-group-list')
+			for (var i = 0;i < d.length;i++) {
+				addGroup(d[i], 'joint-group-list', 'joint')
+			}
+		} else {
+			addGroup(d, 'joint-group-list', 'joint')
 		}
 	})
 
 	//your rooms
 	socket.on('yourRooms', async (d) =>
 	{
-		await clear('your-group-list')
-		for (var i = 0;i < d.length;i++) {
-			addGroup(d[i], 'your-group-list')
+		if (d.length > 1) {
+			await clear('your-group-list')
+			for (var i = 0;i < d.length;i++) {
+				addGroup(d[i], 'your-group-list', 'your')
+			}
+		} else {
+			addGroup(d, 'your-group-list', 'your')
 		}
 	})
 
-	//your dual paired ****
+	//your dual paired
 	socket.on('dualPaired', async (d) =>
 	{
 		if (d) {
-			await clear('pared-dual-list')
+			await clear('paired-dual-list')
 			for (var i = 0;i < d.length;i++) {
-				addGroup(d[i], 'pared-dual-list')
+				addGroup(d[i], 'paired-dual-list', 'paired')
 			}
 		}
 	})
@@ -265,14 +291,16 @@
 	socket.on('login', (d) =>
 	{
 		if (d.status == true) {
-			setCookie('ctrdata1', d.ctrdata1, 0.006)
-			setCookie('ctrdata2', d.ctrdata2, 30)
-			document.getElementById('login-box').classList.add('hidden')
-			document.getElementById('main-container').classList.remove('hidden')
-			document.getElementById('logout-box').classList.remove('hidden')
-			alert('đăng nhập thành công')
-		} else {
-			alert(d.message)
+			if (d.ctrdata1) {
+				setCookie('ctrdata1', d.ctrdata1, 0.006)
+				setCookie('ctrdata2', d.ctrdata2, 30)
+				document.getElementById('login-box').classList.add('hidden')
+				document.getElementById('main-container').classList.remove('hidden')
+				document.getElementById('logout-box').classList.remove('hidden')
+				alert('đăng nhập thành công')
+			} else {
+				ime = d
+			}
 		}
 	})
 
@@ -283,7 +311,7 @@
 		document.getElementById('login-box').classList.remove('hidden')
 		document.getElementById('main-container').classList.add('hidden')
 		document.getElementById('logout-box').classList.add('hidden')
-		socket.emit('disconnect', ime)
+		socket.emit('logout', ime)
 	}
 
 	//create room
@@ -297,22 +325,58 @@
 	}
 	socket.on('add-group', (d) =>
 	{
-		if (d.status == true) {
-			addGroup(d.group, 'group-list')
+		if (d) {
+			addGroup(d, 'group-list')
 		} else {
-			alert(d.message)
+			alert('tạo phòng thất bại')
 		}
 	})
 
 
-	//delete room (editing)
-	document.getElementsByClassName('group').onclick = () =>
+	//delete room 
+	var delBtnList = document.getElementsByClassName('delete-your-btn')
+	document.addEventListener('mousedown', (e) =>
 	{
-		socket.emit('remove-group')
-	}
+		for (var i = 0;i < delBtnList.length;i++) {
+			delBtnList[i].onclick = (e) =>
+			{
+				var id = e.target.getAttribute('id').split('-')[1]
+				socket.emit('removeGroup', id)
+				return null
+			}
+		}
+	})
+	socket.on('removeGroup', (data) =>
+	{
+		var groups = document.getElementsByClassName('group')
+		if (data) {
+			for (var i = 0;i < groups.length;i++) {
+				if (groups[i].getAttribute('id') == data) {
+					remove(data)
+				}
+			}
+
+		} else {
+			alert('xóa phòng thất bại')
+		}
+	})
 
 
-	//current dual chat
+	//current dual chat (editing)***
+
+	//pairing
+	var pairBtn = document.getElementsByClassName('delete-your-btn')
+	document.addEventListener('mousedown', (e) =>
+	{
+		for (var i = 0;i < delBtnList.length;i++) {
+			delBtnList[i].onclick = (e) =>
+			{
+				var id = e.target.getAttribute('id').split('-')[1]
+				socket.emit('removeGroup', id)
+				return null
+			}
+		}
+	})
 	document.getElementById('dual-chat-send-button').onclick = () =>
 	{
 		var message = document.getElementById('dual-message-content').value

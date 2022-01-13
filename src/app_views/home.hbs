@@ -12,6 +12,11 @@
 		<button id='register' style="">Đăng ký</button>
 	</div>
 </div>
+<div class="hidden" id='logout-box'>
+	<form id="logout-form" method="post" action="/logout">
+		<button id='logout' type="submit">Đăng xuất</button>
+	</form>
+</div>
 <span style="
 		display: inline-block;
  		height:350px; background-color: white;
@@ -26,6 +31,11 @@
 	</div>
 </div>
 <div class="hidden" id="main-container">
+	<div>
+		<input type="text" placeholder="nhâp tên group " style="" id="add-group-name" />
+		<button id='add-group' style="">thêm group</button>
+	</div>
+
 	<span style="
 		display: inline-block;
  		height:350px; background-color: white;
@@ -54,16 +64,24 @@
  		background-color: white;
 		overflow: auto;
 		border: 1px solid black;">
-			your groups
-			<div id='your-group-list' style=""></div>
+			joint groups
+			<div id='joint-group-list' style=""></div>
 		</span>
 		<span style="
 			display: inline-block;
 	 		background-color: white;
 			overflow: auto;
 			border: 1px solid black;">
-			your chatting
+			your groups
 			<div id='your-group-list' style=""></div>
+		</span>
+		<span style="
+					display: inline-block;
+			 		background-color: white;
+					overflow: auto;
+					border: 1px solid black;">
+			your dual chat
+			<div id='paired-dual-list' style=""></div>
 		</span>
 	</div>
 	<span>
@@ -115,7 +133,6 @@
 </div>
 <script>
 	var socket = io('/')
-	var name = ''
 	function showMess(name, message, node)
 	{
 		var chatBox = document.getElementById(node)
@@ -123,24 +140,101 @@
 		chatBox.insertAdjacentHTML('beforeEnd', messageContent)
 	}
 
+	function addGroup(g, n)
+	{
+		let Box = document.getElementById(n)
+		let content = `<h4 id='${ String(g._id) }' class='group-available'>${ g.name }</h4>`
+		Box.insertAdjacentHTML('beforeEnd', content)
+	}
+
+	function addUser(g, n)
+	{
+		let Box = document.getElementById(n)
+		let content = `<h4 id='${ String(g._id) }' class='group-available'>${ g.username }</h4>`
+		Box.insertAdjacentHTML('beforeEnd', content)
+	}
+
+	function clear(n)
+	{
+		let Box = document.getElementById(n)
+		Box.innerHTML = ''
+	}
+	function remove(n)
+	{
+		var node = document.getElementById(n)
+		node.parentNode.removeChild(node)
+	}
+
 	function setCookie(cname, cvalue, exdays)
 	{
-		var d = new Date();
-		d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+		var d = new Date()
+		d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000))
 		var expires = "expires=" + d.toUTCString();
-		document.cookie = cname + "=" + cvalue + "; " + expires;
+		document.cookie = cname + "=" + cvalue + "; " + expires
 	}
 
-	//gửi tin chat
-	document.getElementById('dual-chat-send-button').onclick = () =>
+	function getCookie(cname)
 	{
-		var message = document.getElementById('dual-message-content').value
-		socket.emit('dual-chat', {
-			name, message
-		})
+		var name = cname + "="
+		var ca = document.cookie.split(';')
+		for (var i = 0;i < ca.length;i++) {
+			var c = ca[i]
+			while (c.charAt(0) == ' ') c = c.substring(1)
+			if (c.indexOf(name) == 0) return c.substring(name.length, c.length)
+		}
+		return "";
 	}
 
-	//Đăng ký
+	//---------------------------------------------------
+
+	// public rooms
+	socket.on('public', async (d) =>
+	{
+		await clear('group-list')
+		for (var i = 0;i < d.allRooms.length;i++) {
+			addGroup(d.allRooms[i], 'group-list')
+		}
+	})
+
+	//public user
+	socket.on('publicUser', async (d) =>
+	{
+		await clear('user-online-list')
+		for (var i = 0;i < d.length;i++) {
+			addUser(d[i], 'user-online-list')
+		}
+	})
+
+	//joint rooms
+	socket.on('jointRooms', async (d) =>
+	{
+		await clear('joint-group-list')
+		for (var i = 0;i < d.length;i++) {
+			addGroup(d[i], 'joint-group-list')
+		}
+	})
+
+	//your rooms
+	socket.on('yourRooms', async (d) =>
+	{
+		await clear('your-group-list')
+		for (var i = 0;i < d.length;i++) {
+			addGroup(d[i], 'your-group-list')
+		}
+	})
+
+	//your dual paired ****
+	socket.on('dualPaired', async (d) =>
+	{
+		if (d) {
+			await clear('pared-dual-list')
+			for (var i = 0;i < d.length;i++) {
+				addGroup(d[i], 'pared-dual-list')
+			}
+		}
+	})
+
+	//Register
 	document.getElementById('register').onclick = () =>
 	{
 		var username = document.getElementById('register-username').value
@@ -149,6 +243,7 @@
 			username, password
 		})
 	}
+
 	socket.on('register', (d) =>
 	{
 		if (d) {
@@ -158,7 +253,7 @@
 		}
 	})
 
-	//đăng nhập
+	//Login
 	document.getElementById('login').onclick = () =>
 	{
 		var username = document.getElementById('login-username').value
@@ -170,10 +265,11 @@
 	socket.on('login', (d) =>
 	{
 		if (d.status == true) {
-			setCookie('ctrdata1', d.ctrdata1, 1)
+			setCookie('ctrdata1', d.ctrdata1, 0.006)
 			setCookie('ctrdata2', d.ctrdata2, 30)
 			document.getElementById('login-box').classList.add('hidden')
 			document.getElementById('main-container').classList.remove('hidden')
+			document.getElementById('logout-box').classList.remove('hidden')
 			alert('đăng nhập thành công')
 		} else {
 			alert(d.message)
@@ -181,21 +277,65 @@
 	})
 
 
-	//nhận tin nhắn
+	//logout
+	document.getElementById('logout').onclick = () =>
+	{
+		document.getElementById('login-box').classList.remove('hidden')
+		document.getElementById('main-container').classList.add('hidden')
+		document.getElementById('logout-box').classList.add('hidden')
+		socket.emit('disconnect', ime)
+	}
+
+	//create room
+	document.getElementById('add-group').onclick = () =>
+	{
+		var groupName = document.getElementById('add-group-name').value
+		socket.emit('add-group', {
+			ime,
+			groupName,
+		})
+	}
+	socket.on('add-group', (d) =>
+	{
+		if (d.status == true) {
+			addGroup(d.group, 'group-list')
+		} else {
+			alert(d.message)
+		}
+	})
+
+
+	//delete room (editing)
+	document.getElementsByClassName('group').onclick = () =>
+	{
+		socket.emit('remove-group')
+	}
+
+
+	//current dual chat
+	document.getElementById('dual-chat-send-button').onclick = () =>
+	{
+		var message = document.getElementById('dual-message-content').value
+		socket.emit('dual-chat', {
+			name, message
+		})
+	}
+
 	socket.on('dual-chat', (d) =>
 	{
 		let name = d.name
 		let message = d.message
-		showMess(name, message, 'dual-chat-content')
+		showMess(name, message, 'group-chat-content')
 	})
 
 
 
-	//gửi tin nhóm
+	//current group chat
+
 	document.getElementById('group-chat-send-button').onclick = () =>
 	{
 		var message = document.getElementById('message-content').value
-		socket.emit('dual-chat', {
+		socket.emit('group-chat', {
 			name, message
 		})
 	}
@@ -205,6 +345,7 @@
 	{
 		let name = d.name
 		let message = d.message
-		showMess(name, message, 'dual-chat-content')
+		showMess(name, message, 'group-chat-content')
 	})
+
 </script>

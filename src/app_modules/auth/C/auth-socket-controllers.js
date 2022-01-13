@@ -135,108 +135,107 @@ class AuthController {
 				message: 'có sự cố khi đăng nhập, hãy thử lại'
 			}
 		}
-	};
-
-
-	authLogout = async (req, res) => {
-		res.clearCookie('ctrdata1');
-		res.clearCookie('ctrdata2');
-		res.render('./site/notification', {
-			direct: '/',
-			note: '_Status: 200 <br/>Đăng xuất thành công',
-			buttonText: 'OK',
-		})
 	}
 
-	refreshToken = async (req, res, next) => {
+
+	logout = async (req, res) => {
+		res.clearCookie('ctrdata1')
+		res.clearCookie('ctrdata2')
+		res.redirect('back')
+	}
+
+	refreshToken = async (data) => {
 		try
 		{
 			// Lấy access token từ cookie
-			const reqaccessToken = req.cookies.ctrdata1
-			if (!reqaccessToken)
+			const reqAccessToken = data.ctrdata1
+			if (!reqAccessToken)
 			{
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 400 <br/> _EAR01 <br/> Có lỗi sảy ra trong quá trình xác nhận danh tính hãy đăng nhập lại để đảm bảo an toàn',//không tìm thấy acess token
-					buttonText: 'Đăng nhập lại',
-				})
+				console.log('không có token')
+				return {
+					status: false,
+					message: 'có sự cố khi làm mới, hãy đăng nhập lại'
+				}
 			}
 			// Lấy refresh token từ cookie
-			const reqrefreshToken = encoding(req.cookies.ctrdata2)
+			const reqrefreshToken = encoding(data.ctrdata2)
 			if (!reqrefreshToken)
 			{
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 400<br/> _EAR02 <br/> lỗi sảy ra trong quá trình xác nhận danh tính hãy đăng nhập lại để đảm bảo an toàn',//không tìm thấy refesh token
-					buttonText: 'Đăng nhập lại',
-				})
+				console.log('không có refresh token')
+				return {
+					status: false,
+					message: 'có sự cố khi làm mới, hãy đăng nhập lại'
+				}
 			}
 			const accessTokenSecret = env.ACCESS_TOKEN_SECRET
 			const accessTokenLife = env.ACCESS_TOKEN_LIFE
 
 			// Decode access token
 			const decoded = await authMethod.decodeToken(
-				reqaccessToken,
+				reqAccessToken,
 				accessTokenSecret,
 			)
 			if (!decoded)
 			{
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 400<br/> _EAR02 <br/>Có lỗi sảy ra trong quá trình xác nhận danh tính hãy đăng nhập lại để đảm bảo an toàn',// không giải mã được acess token
-					buttonText: 'Đăng nhập lại',
-				})
+				console.log('giải mã access token thất bại')
+				return {
+					status: false,
+					message: 'có sự cố khi làm mới, hãy đăng nhập lại'
+				}
 			}
+
 			const id = decoded.payload.define; // Lấy username từ payload
 			var rf = await tokensModel.findOne({userId: id})
 			const user = await accountsModel.findOne({_id: id}, {username: 1})
 			if (!user)
 			{
 				console.log('_At request [GET] refreshtoken, ( _EAR03) cảnh báo bảo mật: người dùng không tồn tại !!')
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 401<br/> _EAR03 <br/>Lỗi 103, hãy đăng nhập lại. Nếu lỗi này vẫn lặp lại hãy liên hệ với quản trị viên!',// không giải mã được acess token
-					buttonText: 'Đăng nhập lại',
-				})
+				return {
+					status: false,
+					message: 'có sự cố khi làm mới, hãy đăng nhập lại'
+				}
 			}
 			// kiểm tra reresh token trong cơ sở dữ liẹu
 			if (reqrefreshToken !== rf.refreshToken)
 			{
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 400 <br/> _EAR04 <br/> Có lỗi sảy ra trong quá trình xác nhận danh tính hãy đăng nhập lại để đảm bảo an toàn', // refresh token
-					buttonText: 'Đăng nhập lại',
-				})
+				console.log('refresh token không khớp với cơ sở dữ liệu')
+				return {
+					status: false,
+					message: 'có sự cố khi làm mới, hãy đăng nhập lại'
+				}
 			}
 			// Tạo access token mới
 			const dataForAccessToken = {
 				define: id
-			};
+			}
 			const accessToken = await authMethod.generateToken(
 				dataForAccessToken,
 				accessTokenSecret,
 				accessTokenLife,
-			);
+			)
 			if (!accessToken)
 			{
-				return res.render('./site/notification', {
-					direct: '/login',
-					note: '_Status: 400<br/> _EAR05 <br/>Có lỗi sảy ra trong quá trình xác nhận danh tính hãy đăng nhập lại để đảm bảo an toàn', //refresh token
-					buttonText: 'Đăng nhập lại',
-				})
+				console.log('tạo access token mới thất bại')
+				return {
+					status: false,
+					message: 'có sự cố khi làm mới, hãy đăng nhập lại'
+				}
 			}
+
 			rf.lastToken = accessToken
 			await tokensModel(rf).save()
 			//kết thúc và trả về access token mới
-			await res.json(accessToken)
+			return {
+				status: true,
+				value: accessToken
+			}
 		} catch (e)
 		{
 			console.log(e)
-			return res.render('./site/notification', {
-				direct: '/login',
-				note: '_Status: 500<br/> _EAR06 <br/>Server gặp lỗi trong quá trình xác nhận danh tính hãy đăng nhập lại để đảm bảo an toàn', //lỗi máy chủ
-				buttonText: 'Đăng nhập lại',
-			})
+			return {
+				status: false,
+				message: 'có sự cố khi làm mới, hãy đăng nhập lại'
+			}
 		}
 	}
 }

@@ -8,10 +8,13 @@ mongoose.plugin(mongooseDelete, {overrideMethods: 'all', deletedAt: true})//moun
 //configure schema
 const Message = new Schema({
 	content: {type: String, default: '', required: true, },
-	userId: {type: String, default: 'default.css'},
+	token: {type: String, default: '', required: true, },
+	roomId: {type: String, default: '', required: true, },
+	userId: {type: String, default: '', required: true, },
 	isSent: {type: Boolean, default: false},
 	isRead: {type: Boolean, default: false},
 	isReceived: {type: Boolean, default: false},
+	ReadDate: {type: Date},
 }, {timestamps: true})
 
 module.exports = mongoose.model('Message', Message)

@@ -85,30 +85,30 @@
 		</span>
 	</div>
 	<span>
-		<div style="max-width: 300px; position:fixed; botom:20px; right: 20px; border:1px solid black; margin: 30px auto">
-			chat with:<span id="dual-name"> nobody</span>
+		<div style="max-width: 300px; position:fixed; bottom:20px; right: 20px; border:1px solid black;">
+			chat with:<span id="dual-name">nobody</span>
 			<div>
 				<div style="
 		display: block;
  		height:350px; background-color: white;
 		overflow: auto;
 		border: 1px solid black;">
-					<div id='dual-chat-content'></div>
-					end
+					<div class="dual-chat-content" id='' tradeline-type='dual-chat' style="">
+					</div>
 				</div>
 				<div>
 					<input type="text" style="display: block;
 		height: 50px;
-		background-color: white; border: 1px solid" id="dual-message-content" />
+		background-color: white; border: 1px solid" class="dual-chat-edit" id="" />
 				</div>
 				<div>
-					<button id='dual-chat-send-button'>send</button>
+					<button class='chat-send-button dual-chat-btn' id=''>send</button>
 				</div>
 			</div>
 		</div>
 	</span>
 	<span>
-		<div style="max-width: 300px; position:fixed; botom:20px; left: 20px; border:1px solid black; margin: 30px auto">
+		<div style="max-width: 300px; position:fixed; bottom:20px; left: 20px; border:1px solid black;">
 			Group:<span id="group-chat-name"></span>
 			<div>
 				<div style="
@@ -116,16 +116,16 @@
  		height:350px; background-color: white;
 		overflow: auto;
 		border: 1px solid black;">
-					<div id='group-chat-content'></div>
-					end
+					<div class="group-chat-content" id='' tradeline-type='group' style="">
+					</div>
 				</div>
 				<div>
 					<input type="text" style="display: block;
 		height: 50px;
-		background-color: white; border: 1px solid" id="group-message-content" />
+		background-color: white; border: 1px solid" class="group-chat-edit" id="" />
 				</div>
 				<div>
-					<button id='group-chat-send-button'>send</button>
+					<button class='chat-send-button group-chat-btn' id=''>send</button>
 				</div>
 			</div>
 		</div>
@@ -133,15 +133,16 @@
 </div>
 <script>
 	var socket = io('/')
-	var ime = {}
-	socket.on('firstContact', (d) =>
+	var ime = '' // my ID (this is not socket id)
+	var currentDualWithId = '' // dual with this id now (this is not socket id)
+	var currentDualRoomId = '' // dual with this room id now (this is not socket id)
+	var currentGroupId = ''
+	var currentGroupSocketId = []
+
+	function showMess(message, node)
 	{
-		ime.soId = d
-	})
-	function showMess(name, message, node)
-	{
-		var chatBox = document.getElementById(node)
-		var messageContent = `<p class="chat-mess">${ name }:${ message }</p>`
+		var chatBox = document.getElementById('box-' + node)
+		var messageContent = `<p class="chat-mess">${ message.content }</p>`
 		chatBox.insertAdjacentHTML('beforeEnd', messageContent)
 	}
 
@@ -154,9 +155,9 @@
 	}
 
 	function addUser(g, n)
-	{ console.log(g)
+	{
 		let Box = document.getElementById(n)
-		let content = `<h4 id='${ g.userId }' tradeline-temp='${ g.tempId.socketId }' class='user'>${ g.username }</h4>`
+		let content = `<h4 id='${ g.userId }' class='user'>${ g.username }</h4>`
 		Box.insertAdjacentHTML('beforeEnd', content)
 	}
 
@@ -165,12 +166,18 @@
 		let Box = document.getElementById(n)
 		if (Box) {Box.innerHTML = ''}
 	}
+
 	function remove(n)
 	{
 		var node = document.getElementById(n)
 		if (node) {
 			node.parentNode.removeChild(node)
 		}
+	}
+
+	function getRandomInt(max)
+	{
+		return Math.floor(Math.random() * max);
 	}
 
 	function setCookie(cname, cvalue, exdays)
@@ -298,8 +305,10 @@
 				document.getElementById('main-container').classList.remove('hidden')
 				document.getElementById('logout-box').classList.remove('hidden')
 				alert('đăng nhập thành công')
+				ime = d.id
+				console.log('my id:', ime)
 			} else {
-				ime = d
+				alert('đăng nhập thất bại')
 			}
 		}
 	})
@@ -346,6 +355,7 @@
 			}
 		}
 	})
+
 	socket.on('removeGroup', (data) =>
 	{
 		var groups = document.getElementsByClassName('group')
@@ -362,54 +372,107 @@
 	})
 
 
-	//current dual chat (editing)***
-
-	//pairing
-	var pairBtn = document.getElementsByClassName('delete-your-btn')
+	//pairing - dual chat init
+	var dualWithName = ''
 	document.addEventListener('mousedown', (e) =>
 	{
-		for (var i = 0;i < delBtnList.length;i++) {
-			delBtnList[i].onclick = (e) =>
+		var pair = document.getElementsByClassName('user')
+		for (var i = 0;i < pair.length;i++) {
+			pair[i].onclick = (e) =>
 			{
-				var id = e.target.getAttribute('id').split('-')[1]
-				socket.emit('removeGroup', id)
+				dualWithName = e.target.textContent
+				var dualWithId = e.target.getAttribute('id') // lấy id người muốn chat riêng
+				socket.emit('pairing', {id: dualWithId, ime})
 				return null
 			}
 		}
 	})
-	document.getElementById('dual-chat-send-button').onclick = () =>
-	{
-		var message = document.getElementById('dual-message-content').value
-		socket.emit('dual-chat', {
-			name, message
-		})
-	}
 
-	socket.on('dual-chat', (d) =>
+	socket.on('pairing', (d) =>// ghép cặp thành công
 	{
-		let name = d.name
-		let message = d.message
-		showMess(name, message, 'group-chat-content')
+		if (d.status == true) {
+			currentDualRoomId = d.roomId
+			document.getElementsByClassName('dual-chat-btn')[0].setAttribute('id', 'btn-' + currentDualRoomId)
+			document.getElementsByClassName('dual-chat-edit')[0].setAttribute('id', 'me-' + currentDualRoomId)
+			let chatBox = document.getElementsByClassName('dual-chat-content')[0]
+			chatBox.setAttribute('id', 'box-' + currentDualRoomId)
+			clear('box-' + currentDualRoomId)
+			document.getElementById('dual-name').textContent = dualWithName
+			socket.emit('syncMessage', {id: currentDualWithId, ime, roomId: currentDualRoomId})
+		} else {
+			alert(`kết nối với ${ dualWithName } không thành công hãy thử lại`)
+		}
 	})
 
-
-
-	//current group chat
-
-	document.getElementById('group-chat-send-button').onclick = () =>
+	//join room - group chat init (editing) ****
+	var joinGrName = ''
+	document.addEventListener('mousedown', (e) =>
 	{
-		var message = document.getElementById('message-content').value
-		socket.emit('group-chat', {
-			name, message
-		})
-	}
+		let join = document.getElementsByClassName('group')
+		for (var i = 0;i < join.length;i++) {
+			join[i].onclick = (e) =>
+			{
+				joinGrName = e.target.textContent
+				let joinGroupId = e.target.getAttribute('id') // lấy id phòng muốn vào
+				socket.emit('joinGroup', {id: joinGroupId, ime})
+				return null
+			}
+		}
+	})
 
-	//nhận tin nhắn nhóm
-	socket.on('group-chat', (d) =>
+	socket.on('joinGroup', (d) =>
 	{
-		let name = d.name
+		if (d.status == true) {
+			currentGroupId = d.roomId
+			document.getElementsByClassName('group-chat-btn')[0].setAttribute('id', 'btn-' + currentGroupId)
+			document.getElementsByClassName('group-chat-edit')[0].setAttribute('id', 'me-' + currentGroupId)
+			let chatBox = document.getElementsByClassName('group-chat-content')[0]
+			chatBox.setAttribute('id', 'box-' + currentGroupId)
+			clear('box-' + currentGroupId)
+			document.getElementById('group-chat-name').textContent = joinGrName
+			socket.emit('syncMessage', {ime, roomId: currentGroupId})
+		} else {
+			alert(`vào phòng ${ joinGrName } không thành công hãy thử lại`)
+		}
+	})
+
+	//syncMessage
+	socket.on('syncMessage', (d) =>
+	{
+		if (d.status == true) {
+			for (var i = 0;i < d.data.length;i++) {
+				showMess(d.data[i], d.roomId)
+			}
+		} else {
+			console.log('syncMessage failed !!')
+		}
+	})
+
+	//send message
+	document.addEventListener('mousedown', (e) =>
+	{
+		let sendBtns = document.getElementsByClassName('chat-send-button')
+		for (var i = 0;i < sendBtns.length;i++) {
+			sendBtns[i].onclick = (e) =>
+			{
+				let roomId = e.target.getAttribute('id').split('-')[1]
+				let messToken = Number(new Date()) + '_' + String(getRandomInt(20))
+				let message = document.getElementById('me-' + roomId).value
+				socket.emit('sendMessage', {
+					ime,
+					id: currentDualWithId,
+					roomId,
+					message,
+					token: messToken
+				})
+			}
+		}
+	})
+
+	socket.on('sendMessage', (d) =>
+	{
 		let message = d.message
-		showMess(name, message, 'group-chat-content')
+		showMess(message, d.roomId)
 	})
 
 </script>

@@ -9,7 +9,7 @@ mongoose.plugin(mongooseDelete, {overrideMethods: 'all', deletedAt: true})//moun
 const Chatroom = new Schema({
 	name: {type: String, default: '', required: true, },
 	createId: {type: String, default: '', required: true, },
-	adminId: {type: String, default: '', required: true, },
+	adminIds: {type: Array, default: [], required: true, },
 	userIds: {type: Array, default: [], },
 	private: {type: Boolean, default: 'false'},
 	dual: {type: Boolean, default: 'false'},

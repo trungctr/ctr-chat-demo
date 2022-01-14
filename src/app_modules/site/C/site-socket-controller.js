@@ -1,8 +1,9 @@
 //socket methods
 const auths = require('../../auth/C/auth-socket-controllers')
 const groupModel = require('../../site/M/chat-room-model')
+const messageModel = require('../M/message-model')
 const personSettingM = require('../M/personSettings-model')
-const socketIdModel = require('../../auth/M/socketId-model')
+
 
 class Socket {
 	methods(io, socket) {
@@ -13,27 +14,7 @@ class Socket {
 			socket.emit('public', {allRooms})
 		}
 		async function publicUsers() {
-			var allUsers = await personSettingM.aggregate([
-				{
-					$lookup: {
-						from: "socketids",
-						localField: "userId",
-						foreignField: "userId",
-						as: "tempId"
-					}
-				}, {
-					$match: {
-						online: true,
-					}
-				}, {
-					$project: {
-						_id: 0,
-						username: 1,
-						userId: 1,
-						tempId: 1,
-					}
-				}
-			])
+			var allUsers = await personSettingM.find({online: true, hidden: false}, {userId: 1, username: 1})
 			socket.emit('publicUser', allUsers)
 		}
 		publicRooms()
@@ -57,18 +38,13 @@ class Socket {
 			var login = await auths.login(data)
 			if (login.status == true)
 			{
-				socket.emit('login', login)
-				var find = await personSettingM.findOne({username: data.username})
+				const find = await personSettingM.findOne({username: data.username}, {userId: 1, username: 1, hidden: 1})
 				const id = find.userId
-				await socketIdModel.updateOne({userId: id}, {userId: id, socketId: socket.id}, {upsert: true})
-				socket.myId = id
-				var jointRooms = await groupModel.find({userIds: {$in: [id]}})
-				var dualPaired = await groupModel.find({userIds: {$in: [id]}, dual: true})
-				var yourRooms = await groupModel.find({createId: id, adminId: id, dual: false})
+				socket.join(id)
+				login.id = id
+				socket.emit('login', login)
 				await personSettingM.updateOne({userId: id}, {online: true})
-				socket.emit('jointRooms', jointRooms)
-				socket.emit('dualPaired', dualPaired)
-				socket.emit('yourRooms', yourRooms)
+				socket.myId = id
 				if (find.hidden)
 				{
 					await publicUsers()
@@ -77,10 +53,15 @@ class Socket {
 					socket.broadcast.emit('ping', {
 						username: find.username,
 						userId: id,
-						tempId: [{socketId: socket.id}]
 					})
 					await publicUsers()
 				}
+				var jointRooms = await groupModel.find({userIds: {$in: [id]}, dual: false})
+				var dualPaired = await groupModel.find({userIds: {$in: [id]}, dual: true})
+				var yourRooms = await groupModel.find({createId: id, adminId: id, dual: false})
+				socket.emit('jointRooms', jointRooms)
+				socket.emit('dualPaired', dualPaired)
+				socket.emit('yourRooms', yourRooms)
 			} else
 			{
 				socket.emit('login', login)
@@ -109,7 +90,7 @@ class Socket {
 			const newGroup = {
 				name: data.groupName,
 				createId: data.ime.userId,
-				adminId: data.ime.userId,
+				adminIds: [data.ime.userId],
 				userIds: [data.ime.userId],
 			}
 			await groupModel(newGroup).save()
@@ -126,55 +107,203 @@ class Socket {
 		})
 
 		//delete room
-		socket.on('removeGroup', async (data) => {
-			await groupModel.deleteOne({_id: data})
-			var deletedGroup = await groupModel.findOne({_id: data})
+		socket.on('removeGroup', async (groupId) => {
+			await groupModel.deleteOne({_id: groupId})
+			var deletedGroup = await groupModel.findOne({_id: groupId})
 			if (deletedGroup)
 			{
 				socket.emit('removeGroup', false)
 			} else
 			{
-				io.sockets.emit('removeGroup', data)
+				io.sockets.emit('removeGroup', groupId)
+			}
+		})
+
+		//pairing - dual chat
+		socket.on('pairing', async (ids) => {
+			try
+			{
+				//kiểm tra pair hay chưa ?
+				var dual = ids.id + '_' + ids.ime
+				var dualx = ids.ime + '_' + ids.id
+				var isPaired = await groupModel.findOne({name: dual, createId: dual, dual: true}, {_id: 1})
+				var isPairedx = await groupModel.findOne({name: dualx, createId: dualx, dual: true}, {_id: 1})
+				if (isPaired)// thấy phòng TH1
+				{
+						socket.emit('pairing', {
+							status: true,
+							roomId: isPaired._id /*trả về id của phòng*/
+						})
+				} else if(isPairedx)
+				{
+					socket.emit('pairing', {
+						status: true,
+						roomId: isPairedx._id /*trả về id của phòng*/
+					})
+				}else {
+					
+					await groupModel({name: dual, createId: dual, adminIds: [ids.ime , ids.id], dual: true, private: true}).save()
+					var isCreated = await groupModel.findOne({name: dual, createId: dual, dual: true, private: true}, {_id: 1})
+					if (isCreated)
+					{
+						socket.emit('pairing', {
+							status: true,
+							roomId: isCreated._id /*trả về id của phòng*/
+						})
+					} else
+					{
+						console.log('ghép cặp không thành công')
+						socket.emit('pairing', false)
+					}
+				}
+			} catch (e)
+			{
+				console.log(e)
+				socket.emit('pairing', false)
+			}
+		})
+
+		//join - group chat
+		socket.on('joinGroup', async (d) => {
+			try
+			{
+				var thisRoom = await groupModel.findOne({_id: d.id})
+
+				if (thisRoom)// thấy phòng
+				{
+					socket.join(d._id)
+					socket.emit('joinGroup', {
+						status: true,
+						roomId: thisRoom._id /*trả về id của phòng*/
+					})
+				}
+				else
+				{
+					console.log('vào room thất bại')
+					socket.emit('joinGroup', false)
+				}
+			} catch (e)
+			{
+				console.log(e)
+				socket.emit('joinGroup', false)
 			}
 		})
 
 
-		//dual chat editing***
-		socket.on('dual-chat', async (d) => {
-			console.log(socket.id, d.name, ':', d.message)
-			// gửi dữ liệu nhận được cho toàn bộ clients
-			var toAll = d
-			toAll.message = 'to all' + toAll.message
-			io.sockets.emit('dual-chat', toAll)
-
-			// chỉ trả lời cho duy nhất client đã gửi
-			var d2 = {}
-			d2.name = 'Server'
-			d2.message = 'you said "' + d.message + '"(only you see this)'
-			socket.emit('dual-chat', d2)
-
-			// trả lời cho tất cả clients trừ client đã gửi
-			var d3 = {}
-			d3.name = 'Server'
-			d3.message = '(' + d.name + ')' + d.message
-			socket.broadcast.emit('dual-chat', d3)
-
-			// lấy danh sách các room
-			console.log(socket.adapter.rooms)
-
+		// syncMessage
+		socket.on('syncMessage', async (ids) => {
+			var messages = await messageModel.aggregate([
+				{
+					$match: {
+						roomId: ids.roomId
+					}
+				},
+				{
+					$lookup: {
+						from: 'personsettings',
+						localField: 'userId',
+						foreignField: 'userId',
+						as: 'user'
+					}
+				},
+				{
+					$project: {
+						_id: 1,
+						content: 1,
+						roomId: 1,
+						userId: 1,
+						isSent: 1,
+						isRead: 1,
+						isReceived: 1,
+						createdAt: 1,
+						updatedAt: 1,
+						user:1
+					}
+				},
+				{
+					$lookup: {
+						from: 'icons',
+						localField: '_id',
+						foreignField: 'messageId',
+						as: 'icons'
+					}
+				},
+			])
+			if (messages)
+			{
+				socket.emit('syncMessage', {
+					status: true,
+					data: messages,
+					roomId: ids.roomId,
+				})
+			} else
+			{
+				socket.emit('syncMessage', false)
+			}
 		})
-		// join room, khi join vào 1 room chưa tồn tại thì sokect sẽ tạo 1 room mới
-		// khi join vào 1 room đã tồn tại thì sẽ đc join vào room tồn tại
-		socket.on('join room', (d) => {
-			socket.join(d)
-		})
 
-		// join room, khi join vào 1 room chưa tồn tại thì sokect sẽ tạo 1 room mới
-		// khi join vào 1 room đã tồn tại thì sẽ đc join vào room tồn tại
-		socket.on('leave room', (d) => {
-			socket.leave(d)
-		})
+		//send message
+		socket.on('sendMessage', async (d) => {
+			await messageModel({
+				content: d.message,
+				roomId: d.roomId,
+				userId: d.ime,
+				token: d.token,
+			}).save()
 
+			var isSent = await messageModel.aggregate([
+				{
+					$match: {
+						roomId: d.roomId,
+						userId: d.ime,
+						token: d.token,
+					}
+				},
+				{
+					$lookup: {
+						from: 'personsettings',
+						localField: 'userId',
+						foreignField: 'userId',
+						as: 'username'
+					}
+				},
+				{
+					$project: {
+						_id: 1,
+						content: 1,
+						roomId: 1,
+						userId: 1,
+						isSent: 1,
+						isRead: 1,
+						isReceived: 1,
+						createdAt: 1,
+						updatedAt: 1,
+						username:1
+					}
+				}
+			])
+			if (isSent)
+			{
+				for (var i = 0;i < isSent.length; i++)
+				{
+					socket.to(d.id).emit('sendMessage', {
+						status: true,
+						roomId: d.roomId,
+						message: isSent[0]
+					})
+				}
+				socket.emit('sendMessage', {
+					status: true,
+					roomId: d.roomId,
+					message: isSent[0]
+				})
+			} else
+			{
+				socket.emit('sendMessage', {
+					status: false,
+				})
+			}
+		})
 	}
 }
 

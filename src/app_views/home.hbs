@@ -35,6 +35,15 @@
 		<input type="text" placeholder="nhâp tên group " style="" id="add-group-name" />
 		<button id='add-group' style="">thêm group</button>
 	</div>
+	<div>
+		<span>user name:</span><span id="myUsername" ></span>
+	</div>
+	<div>
+		<span >soketid by System:</span><span id="stID"></span>
+	</div>
+	<div>
+		<span >soketid by login:</span><span id="loginID"></span>
+	</div>
 
 	<span style="
 		display: inline-block;
@@ -133,6 +142,9 @@
 </div>
 <script>
 	var socket = io('/')
+	socket.on('connected', function(d){
+		document.getElementById('stID').textContent = d
+	})
 	var ime = '' // my ID (this is not socket id)
 	var currentDualWithId = '' // dual with this id now (this is not socket id)
 	var currentDualRoomId = '' // dual with this room id now (this is not socket id)
@@ -304,6 +316,8 @@
 				document.getElementById('login-box').classList.add('hidden')
 				document.getElementById('main-container').classList.remove('hidden')
 				document.getElementById('logout-box').classList.remove('hidden')
+				document.getElementById('myUsername').textContent = d.username
+				document.getElementById('loginID').textContent = d.socketId
 				alert('đăng nhập thành công')
 				ime = d.id
 				console.log('my id:', ime)
@@ -471,8 +485,11 @@
 
 	socket.on('sendMessage', (d) =>
 	{
-		let message = d.message
-		showMess(message, d.roomId)
+		if (d.status == true) {
+				showMess(d.message, d.roomId)
+		} else {
+			console.log('message send failed !!')
+		}
 	})
 
 </script>

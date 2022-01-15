@@ -3,12 +3,15 @@ const auths = require('../../auth/C/auth-socket-controllers')
 const groupModel = require('../../site/M/chat-room-model')
 const messageModel = require('../M/message-model')
 const personSettingM = require('../M/personSettings-model')
+const SocketId = require('../M/soketId-model')
 
 
 class Socket {
 	methods(io, socket) {
 		//public
 		console.log(socket.id, 'đã kết nối')
+		console.log(1, io.sockets.adapter.rooms, '\n')
+		socket.emit('connected', socket.id)
 		async function publicRooms() {
 			var allRooms = await groupModel.find({private: false})
 			socket.emit('public', {allRooms})
@@ -40,9 +43,14 @@ class Socket {
 			{
 				const find = await personSettingM.findOne({username: data.username}, {userId: 1, username: 1, hidden: 1})
 				const id = find.userId
-				socket.join(id)
+				const nowSocket = socket.id
+				console.log('nowSocket=', nowSocket)
+				await SocketId.updateOne({userId: id}, {userId: id, value: nowSocket}, {upsert: true})
 				login.id = id
+				login.username = data.username
+				login.socketId = nowSocket
 				socket.emit('login', login)
+				console.log(1, io.sockets.adapter.rooms, '\n')
 				await personSettingM.updateOne({userId: id}, {online: true})
 				socket.myId = id
 				if (find.hidden)
@@ -130,19 +138,20 @@ class Socket {
 				var isPairedx = await groupModel.findOne({name: dualx, createId: dualx, dual: true}, {_id: 1})
 				if (isPaired)// thấy phòng TH1
 				{
-						socket.emit('pairing', {
-							status: true,
-							roomId: isPaired._id /*trả về id của phòng*/
-						})
-				} else if(isPairedx)
+					socket.emit('pairing', {
+						status: true,
+						roomId: isPaired._id /*trả về id của phòng*/
+					})
+				} else if (isPairedx)
 				{
 					socket.emit('pairing', {
 						status: true,
 						roomId: isPairedx._id /*trả về id của phòng*/
 					})
-				}else {
-					
-					await groupModel({name: dual, createId: dual, adminIds: [ids.ime , ids.id], dual: true, private: true}).save()
+				} else
+				{
+
+					await groupModel({name: dual, createId: dual, adminIds: [ids.ime, ids.id], dual: true, private: true}).save()
 					var isCreated = await groupModel.findOne({name: dual, createId: dual, dual: true, private: true}, {_id: 1})
 					if (isCreated)
 					{
@@ -171,7 +180,12 @@ class Socket {
 
 				if (thisRoom)// thấy phòng
 				{
-					socket.join(d._id)
+					if (!thisRoom.userIds.includes(d.ime))
+					{
+						thisRoom.userIds.push(d.ime)
+					}
+					await groupModel(thisRoom).save()
+					socket.join(thisRoom._id.toString())
 					socket.emit('joinGroup', {
 						status: true,
 						roomId: thisRoom._id /*trả về id của phòng*/
@@ -217,7 +231,7 @@ class Socket {
 						isReceived: 1,
 						createdAt: 1,
 						updatedAt: 1,
-						user:1
+						user: 1
 					}
 				},
 				{
@@ -250,7 +264,10 @@ class Socket {
 				userId: d.ime,
 				token: d.token,
 			}).save()
-
+			var find = await groupModel.findOne({_id: d.roomId}, {userIds: 1})
+			const users = find.userIds
+			console.log('send mess 1', users)
+			if (!users) {console.log('không thấy room !!!')}
 			var isSent = await messageModel.aggregate([
 				{
 					$match: {
@@ -278,27 +295,26 @@ class Socket {
 						isReceived: 1,
 						createdAt: 1,
 						updatedAt: 1,
-						username:1
+						username: 1
 					}
 				}
 			])
 			if (isSent)
 			{
-				for (var i = 0;i < isSent.length; i++)
+				console.log(isSent)
+				for (var i = 0;i < users.length;i++)
 				{
-					socket.to(d.id).emit('sendMessage', {
+					var socketID = await SocketId.findOne({userId: users[i]}, {value: 1})
+					console.log(socketID.value, typeof socketID.value)
+					io.sockets.in(socketID.value).emit('sendMessage', {
 						status: true,
 						roomId: d.roomId,
 						message: isSent[0]
 					})
 				}
-				socket.emit('sendMessage', {
-					status: true,
-					roomId: d.roomId,
-					message: isSent[0]
-				})
 			} else
 			{
+				console.log('gửi tin thất bại')
 				socket.emit('sendMessage', {
 					status: false,
 				})

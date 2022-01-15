@@ -44,6 +44,9 @@
 	<div>
 		<span >soketid by login:</span><span id="loginID"></span>
 	</div>
+	<div>
+		<span id="testWaring" style="color:red; font-weight:bold; font-size: 20px"></span>
+	</div>
 
 	<span style="
 		display: inline-block;
@@ -144,12 +147,21 @@
 	var socket = io('/')
 	socket.on('connected', function(d){
 		document.getElementById('stID').textContent = d
+		testWaring()
 	})
 	var ime = '' // my ID (this is not socket id)
 	var currentDualWithId = '' // dual with this id now (this is not socket id)
 	var currentDualRoomId = '' // dual with this room id now (this is not socket id)
 	var currentGroupId = ''
 	var currentGroupSocketId = []
+
+ function testWaring(){
+	 var f1 = document.getElementById('stID').textContent
+	 var f2 = document.getElementById('loginID').textContent
+	 var f3 = document.getElementById('testWaring')
+	 var ct = 'server đã reset, hãy đăng nhập lại để tránh lỗi'
+	 if (f1 !== f2) {f3.textContent = ct}else{f3.textContent = ''}
+ }
 
 	function showMess(message, node)
 	{
@@ -318,6 +330,7 @@
 				document.getElementById('logout-box').classList.remove('hidden')
 				document.getElementById('myUsername').textContent = d.username
 				document.getElementById('loginID').textContent = d.socketId
+				testWaring()
 				alert('đăng nhập thành công')
 				ime = d.id
 				console.log('my id:', ime)
